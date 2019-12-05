@@ -86,4 +86,6 @@ class Trainer:
         solution = cvxopt.solvers.qp(P, q, G, h, A, b)
 
         # Lagrange multipliers
+        print(solution['x'])
+        print(solution['primal objective'])
         return numpy.ravel(solution['x'])

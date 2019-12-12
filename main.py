@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
 import itertools
-from optimisation.trainer import Trainer
 from svm.kernel import Kernel
 #from iterative.classificator import SVM
 from svm.binary_classes import SVM
@@ -138,9 +137,9 @@ def plot(predictor, X, y, grid_size):
     xx = np.linspace(-10, 10)
     yy = a * xx - predictor.intercept_ / w[1]
     plt.plot(xx, yy, 'k-')
-    b = predictor.support_vectors_[0]
+    b = predictor.chosen_support_vectors[0]
     yy_down = a * xx + (b[1] - a * b[0])
-    b = predictor.support_vectors_[-1]
+    b = predictor.chosen_support_vectors[1]
     yy_up = a * xx + (b[1] - a * b[0])
 
     # plot the line, the points, and the nearest vectors to the plane

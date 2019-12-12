@@ -22,6 +22,14 @@ class SVM(object):
         for n in range(len(self.dual_coef_)):
             self.w += self.dual_coef_[n] * self.support_vectors_[n]
         print(self.w)
+        sup_vec_prediction = self.distanceFromHyperplane(self.support_vectors_)
+        positive_vectors = self.support_vectors_[sup_vec_prediction > 0]
+        positive_predictions = sup_vec_prediction[sup_vec_prediction > 0]
+        negative_vectors = self.support_vectors_[sup_vec_prediction < 0]
+        negative_predictions = sup_vec_prediction[sup_vec_prediction < 0]
+        positive_sup_vec_index = np.argmin(positive_predictions)
+        negative_sup_vec_index = np.argmax(negative_predictions)
+        self.chosen_support_vectors = [positive_vectors[positive_sup_vec_index], negative_vectors[negative_sup_vec_index]]
 
     def _compute_kernel_support_vectors(self, X):
         res = np.zeros((X.shape[0], self.support_vectors_.shape[0]))
@@ -30,10 +38,13 @@ class SVM(object):
                 res[i, j] = self.kernel(x_i, x_j)
         return res
 
-    def predict(self, X):
+    def distanceFromHyperplane(self, X):
         kernel_support_vectors = self._compute_kernel_support_vectors(X)
         prod = np.multiply(kernel_support_vectors, self.dual_coef_)
-        prediction = self.intercept_ + np.sum(prod, 1)
+        return self.intercept_ + np.sum(prod, 1)
+
+    def predict(self, X):
+        prediction = self.distanceFromHyperplane(X)
         return np.sign(prediction)
 
     def score(self, X, y):

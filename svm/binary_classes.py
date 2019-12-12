@@ -1,8 +1,11 @@
 import numpy as np
+import math
+
+from svm.plotter import Plotter
 
 
 class SVM(object):
-    def __init__(self, kernel, C=1.0, max_iter=1000, tol=0.001):
+    def __init__(self, kernel, C=1.0, max_iter=1000, tol=0.001): #ToDo: C powinno byc ustawiane przez uzytkownika w UI
         self.kernel = kernel
         self.C = C
         self.max_iter = max_iter
@@ -11,25 +14,33 @@ class SVM(object):
 
     def fit(self, X, y):
         lagrange_multipliers, intercept = self._compute_weights(X, y)
+        self.set_classifier_variables(X, y, lagrange_multipliers, intercept)
+
+    def set_classifier_variables(self, X, y, lagrange_multipliers, intercept):
         self.intercept_ = intercept
         support_vector_indices = lagrange_multipliers > self.support_vector_tol
         self.dual_coef_ = lagrange_multipliers[support_vector_indices] * y[support_vector_indices]
         self.support_vectors_ = X[support_vector_indices]
+        self.w = self.calculate_w_vector()
+        self.chosen_support_vectors = self.choose_support_vectors()
 
-        self.sv_y = y[support_vector_indices]
-        # Weights
-        self.w = np.zeros(2)
+    def calculate_w_vector(self):
+        w = np.zeros(2)
         for n in range(len(self.dual_coef_)):
-            self.w += self.dual_coef_[n] * self.support_vectors_[n]
-        print(self.w)
+            w += self.dual_coef_[n] * self.support_vectors_[n]
+        return w
+
+    def choose_support_vectors(self):
         sup_vec_prediction = self.distanceFromHyperplane(self.support_vectors_)
-        positive_vectors = self.support_vectors_[sup_vec_prediction > 0]
-        positive_predictions = sup_vec_prediction[sup_vec_prediction > 0]
-        negative_vectors = self.support_vectors_[sup_vec_prediction < 0]
-        negative_predictions = sup_vec_prediction[sup_vec_prediction < 0]
-        positive_sup_vec_index = np.argmin(positive_predictions)
-        negative_sup_vec_index = np.argmax(negative_predictions)
-        self.chosen_support_vectors = [positive_vectors[positive_sup_vec_index], negative_vectors[negative_sup_vec_index]]
+        positive_vectors = self.support_vectors_[sup_vec_prediction > self.C]
+        positive_predictions = sup_vec_prediction[sup_vec_prediction > self.C]
+        negative_vectors = self.support_vectors_[sup_vec_prediction < 0 - self.C]
+        negative_predictions = sup_vec_prediction[sup_vec_prediction < 0 - self.C]
+        positive_sup_vec_index = np.argmin(positive_predictions) if len(positive_predictions) > 0 else -1
+        negative_sup_vec_index = np.argmax(negative_predictions) if len(negative_predictions) > 0 else -1
+        sup_vec_0 = positive_vectors[positive_sup_vec_index] if positive_sup_vec_index != -1 else None
+        sup_vec_1 = negative_vectors[negative_sup_vec_index] if negative_sup_vec_index != -1 else None
+        return [sup_vec_0, sup_vec_1]
 
     def _compute_kernel_support_vectors(self, X):
         res = np.zeros((X.shape[0], self.support_vectors_.shape[0]))
@@ -61,7 +72,11 @@ class SVM(object):
 
     def _compute_intercept(self, alpha, yg):
         indices = (alpha < self.C) * (alpha > 0)
-        return np.mean(yg[indices])
+        intercept = np.mean(yg[indices])
+        if math.isnan(intercept):
+            return 0
+        else:
+            return intercept
 
     def _compute_weights(self, X, y):
         iteration = 0
@@ -71,7 +86,6 @@ class SVM(object):
 
         while True:
             yg = g * y
-
             # Working Set Selection via maximum violating constraints
             indices_y_positive = (y == 1)
             indices_y_negative = (np.ones(n_samples) - indices_y_positive).astype(bool)  # (y == -1)
@@ -112,8 +126,14 @@ class SVM(object):
 
             iteration += 1
 
-        # Compute intercept
-        intercept = self._compute_intercept(alpha, yg)
+            # Plot intermediate state in iterations
+            # ToDo: dynamiczne wyswietlanie zmian po kolejnych iteracjach
+            if iteration > 0 and iteration % 3 == 0:
+                intercept = self._compute_intercept(alpha, yg)
+                self.set_classifier_variables(X, y, alpha, intercept)
+                print("iteration {} score {}".format(iteration, self.score(X, y)))
+                Plotter.plot(self, X, y, 200)
 
         print('{} iterations for gradient ascent'.format(iteration))
+        intercept = self._compute_intercept(alpha, yg)
         return alpha, intercept
